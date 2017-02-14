@@ -20,7 +20,7 @@ title 'MLE Parametric Linkage Data';
 * # Kids/family                                 ;
 *-----------------------------------------------;
 %let nfams=100;
-%let mkids=4;
+%let mkids=0;
                                                                                                                        
 *--------------------------------------;
 * Disease Gene (Latent)                ;
@@ -252,7 +252,10 @@ run;
       end;
      run;
                                                                                                                          
-     proc print data=individs(obs=10); title3 'individs';
+     proc print data=individs; title3 'individs';
+     run;
+     proc export data=individs
+     outfile="/home/ramua/project/linksim/linkdata.csv";
      run;
   
 
@@ -284,6 +287,7 @@ run;
 
      proc sort data=alleles; by i;
 ;
+     OA
      *------------------------------;
      * Run simple Stat Analyses     ;
      *------------------------------;
