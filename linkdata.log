@@ -1,0 +1,888 @@
+1                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+NOTE: Copyright (c) 2002-2012 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software 9.4 (TS1M2) 
+      Licensed to WASHINGTON UNIVERSITY IN ST LOUIS - T&R, Site 70090255.
+NOTE: This session is executing on the Linux 2.6.32-504.16.2.el6.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Updated analytical products:
+      
+      SAS/STAT 13.2
+      SAS/ETS 13.2
+      SAS/OR 13.2
+      SAS/IML 13.2
+      SAS/QC 13.2
+
+NOTE: Additional host information:
+
+ Linux LIN X64 2.6.32-504.16.2.el6.x86_64 #1 SMP Tue Mar 10 17:01:00 EDT 2015 x86_64 Red Hat Enterprise Linux Server release 6.6 
+      (Santiago) 
+
+You are running SAS 9. Some SAS 8 files will be automatically converted 
+by the V9 engine; others are incompatible.  Please see 
+http://support.sas.com/rnd/migration/planning/platform/64bit.html
+
+PROC MIGRATE will preserve current SAS file attributes and is 
+recommended for converting all your SAS libraries from any 
+SAS 8 release to SAS 9.  For details and examples, please see
+http://support.sas.com/rnd/migration/index.html
+
+
+This message is contained in the SAS news file, and is presented upon
+initialization.  Edit the file "news" in the "misc/base" directory to
+display site-specific news and information in the program log.
+The command line option "-nonews" will prevent this display.
+
+
+
+
+NOTE: SAS initialization used:
+      real time           0.04 seconds
+      cpu time            0.03 seconds
+      
+1          *-------------------------------------------------------------;
+2          * Generate Linkage Term Project Problem for 621 Comp Stat Gen ;
+3          * Author: M.A. Province 2005 (enhanced 2010)                  ;
+4          *-------------------------------------------------------------;
+5          
+6          options mprint mtrace;
+7          title 'MLE Parametric Linkage Data';
+8          
+9          
+10         ****************************************************************;
+11         * Specify parameters                                           *;
+12         ****************************************************************;
+13         *-----------------------------;
+14         * Starting seed for simulation;
+15         *-----------------------------;
+16         %let seed=12345;
+2                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+17         
+18         *-----------------------------------------------;
+19         * # Families (assume nuclear: F, M, C1, ..., Cm);
+20         * # Kids/family                                 ;
+21         *-----------------------------------------------;
+22         %let nfams=100;
+23         %let mkids=4;
+24         
+25         *--------------------------------------;
+26         * Disease Gene (Latent)                ;
+27         * Allele Frequency (assume BI-alllelic);
+28         *--------------------------------------;
+29         %let dq=0.4;
+30         
+31         *----------------------;
+32         * Penetrance           ;
+33         * Three genotypic means;
+34         *----------------------;
+35         %let mudaa=-0.6;
+36         %let mudab=0.0;
+37         %let mudbb=0.8;
+38         
+39         *----------------;
+40         * Common variance;
+41         *----------------;
+42         %let de=0.1;
+43         
+44         *---------------------------------------;
+45         * Linkage Marker (Observed)             ;
+46         *   Number of Alleles for Linkage Marker;
+47         *---------------------------------------;
+48         %let lalleles=6;
+49         
+50         *------------------------------------------------------------------------------------------------------;
+51         *Recombination fraction between Disease gene and Linkage Marker gene: 0=completely linked, 1/2=unlinked;
+52         *------------------------------------------------------------------------------------------------------;
+53         %let theta=0.1;
+54         
+55         ****************************************************************;
+56         * Done specifying parameters                                   *;
+57         ****************************************************************;
+58         
+59         
+60         *----------------------------------------------------------------------------;
+61         * Calculate Marker Allele Frequencies (assume all equal) from input # alleles;
+62         *----------------------------------------------------------------------------;
+63         data _null_;
+64           lafreq=(1/&lalleles);
+65           length lqs $200;
+66           lqs=trim(left(lafreq))||repeat(","||trim(left(lafreq)), &lalleles-2);
+67           call symput("lqs",trim(left(lqs)));
+68         run;
+
+NOTE: Numeric values have been converted to character values at the places given by: (Line):(Column).
+      66:17   66:49   
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+3                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+      
+
+69         
+70         %put lqs=&lqs;
+lqs=0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667
+71         
+72         *-----------------------------------------------------------------------------------------------------------;
+73         * Macro LINK:                                                                                               ;
+74         * Purpose:  Generate Linkage Dataset (Nuclear Families, Quantitative Pheno, Disease Gene and Marker)        ;
+75         *-----------------------------------------------------------------------------------------------------------;
+76         
+77         %macro link;
+78         
+79             title2 "theta=&theta mudaa=&mudaa mudab=&mudab mudbb=&mudbb dq=&dq de=&de lalleles=&lalleles nfams=&nfams
+79       ! mkids=&mkids seed=&seed";
+80         
+81             *--------------------------------------------------------;
+82             * Generate &nfams Nuclear Families: F, M, 1, ..., &mkids.;
+83             * One record/pedid                                       ;
+84             *--------------------------------------------------------;
+85             data families;
+86               seed=&seed;
+87               dq=&dq;  * disease-risk allele freq of disease gene;
+88               dp=1-dq; * normal-risk allele freq of disease gene;
+89               de=&de;
+90         
+91               *-------------------------------------------;
+92               * Disease Genotype, phenotype and haplotypes;
+93               *-------------------------------------------;
+94         
+95               array dgene{*} dgf dgm dg1-dg&mkids;
+96               array phenos{*} pf  pm  p1 -p&mkids;
+97         
+98               array mud{3} _temporary_ (&mudaa &mudab &mudbb);
+99         
+100              *------------------------------------------------------------------;
+101              * Two alleles (blue from father, pink from mother) for Disease Gene;
+102              *------------------------------------------------------------------;
+103              array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da&mkids;
+104              array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da&mkids;
+105        
+106              *--------------------------------------------------------------------;
+107              * Two alleles (blue from father, pink from mother) for Linkage Marker;
+108              *--------------------------------------------------------------------;
+109              array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la&mkids;
+110              array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la&mkids;
+111        
+112              *--------------------;
+113              * Generate each pedid;
+114              *--------------------;
+115              do j=1 to &nfams;
+116        
+117                pedid=j;
+118        
+119                do i=1 to &mkids+2;
+120        
+121                  if i<=2 then do;
+122                    *-------------------------------------------------------------------;
+4                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+123                    * First generate Parents (founders) Genotypes--assume RANDOM mating ;
+124                    *-------------------------------------------------------------------;
+125        
+126                    *---------------------------------------------------------;
+127                    * Generate Disease Genotypes by drawing alleles (randomly);
+128                    *---------------------------------------------------------;
+129                    call rantbl(seed, dp, dq, blue_dallele{i});
+130                    call rantbl(seed, dp, dq, pink_dallele{i});
+131        
+132                    *-------------------------------------------;
+133                    * Generate Linkage Marker Alleles (randomly);
+134                    *-------------------------------------------;
+135                    call rantbl(seed, &lqs, blue_lallele{i});
+136                    call rantbl(seed, &lqs, pink_lallele{i});
+137        
+138                  end;
+139                  else do;
+140                    *----------------------------------------------------------;
+141                    * Now generate Kids Genotypes from parents (dropping genes);
+142                    *----------------------------------------------------------;
+143        
+144                    *------------------------------------------------------------------------------------------------------------
+144      ! -----;
+145                    * Randomly choose whether father gives his Blue or Pink allele to each kid (this will be kids Blue allele)
+145      !      ;
+146                    * But you must do this for both the disease and linkage markers simultaneously, because they are linked by
+146      ! &theta ;
+147                    *------------------------------------------------------------------------------------------------------------
+147      ! -----;
+148        
+149                    call ranuni(seed, xr1);
+150                    blue_recomb=(xr1 < &theta);
+151                    call ranuni(seed, x1);
+152        
+153                    if (x1<0.5) then do;
+154                      blue_dallele{i} = blue_dallele{1};
+155                      if blue_recomb then blue_lallele{i} = pink_lallele{1};
+156                      else                blue_lallele{i} = blue_lallele{1};
+157                    end;
+158                    else do;
+159                      blue_dallele{i} = pink_dallele{1};
+160                      if blue_recomb then blue_lallele{i} = blue_lallele{1};
+161                      else                blue_lallele{i} = pink_lallele{1};
+162                    end;
+163        
+164                    *----------------------------------------;
+165                    * Same for mother (pick kids Pink allele);
+166                    *----------------------------------------;
+167        
+168                    call ranuni(seed, xr2);
+169                    pink_recomb=(xr2 < &theta);
+170                    call ranuni(seed, x2);
+171        
+172                    if (x2<0.5) then do;
+173                      pink_dallele{i} = blue_dallele{2};
+174                      if pink_recomb then pink_lallele{i} = pink_lallele{2};
+175                      else                pink_lallele{i} = blue_lallele{2};
+176                    end;
+5                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+177                    else do;
+178                      pink_dallele{i} = pink_dallele{2};
+179                      if pink_recomb then pink_lallele{i} = blue_lallele{2};
+180                      else                pink_lallele{i} = pink_lallele{2};
+181                    end;
+182                  end;
+183        
+184                  *-----------------------------------------------------------------------------------------;
+185                  * Disease genotype index: 1=1/1, 2=1/2, 3=2/2, to feed into MUD{} array of genotypic means;
+186                  *-----------------------------------------------------------------------------------------;
+187                  dgene{i} = blue_dallele{i} + pink_dallele{i} - 1;
+188        
+189                  *-------------------------------------------------------------------;
+190                  * Generate Phenotype from Disease Genotype for each person in family;
+191                  *-------------------------------------------------------------------;
+192                  call rannor(seed,x);
+193                  phenos{i} = mud{dgene{i}} + de * x;
+194        
+195                end;
+196        
+197                *-------------------------;
+198                * Output record (1/family);
+199                *-------------------------;
+200                output;
+201              end;
+202        
+203              *--------------------------------;
+204              * Output last SEED for later use ;
+205              *--------------------------------;
+206              call symput('seed',trim(left(seed)));
+207              retain seed;
+208              drop i j;
+209            run;
+210        
+211        
+212            proc print data=families(obs=10); title3 'Families'; run;
+213        
+214        
+215            *------------------------------------------;
+216            * Now convert from Families to Individuals ;
+217            *------------------------------------------;
+218            data individs;
+219              set families;
+220        
+221              *--------------------------------------------------------;
+222              * Copy the arrays defined before (above, in families dsn);
+223              *--------------------------------------------------------;
+224              array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da&mkids;
+225              array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da&mkids;
+226        
+227              array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la&mkids;
+228              array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la&mkids;
+229        
+230              length cdgf cdgm cdg1-cdg&mkids $10;
+231              length clgf clgm clg1-clg&mkids $10;
+232        
+233              array cdgeno{*} cdgf cdgm cdg1-cdg&mkids;
+234              array clgeno{*} clgf clgm clg1-clg&mkids;
+6                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+235        
+236              array phenos{*} pf  pm  p1-p&mkids;
+237        
+238              do i=1 to &mkids+2;
+239                *----------------------------------------------------------------------------;
+240                * Convert the two numeric alleles into the character "x/y" genotype notation ;
+241                * for each of the disease gene and the linkage marker                        ;
+242                *----------------------------------------------------------------------------;
+243                cdgeno{i} = trim(left( min(of blue_dallele{i} pink_dallele{i}) ))||'/'||trim(left( max(of blue_dallele{i}
+243      ! pink_dallele{i}) ));
+244                clgeno{i} = trim(left( min(of blue_lallele{i} pink_lallele{i}) ))||'/'||trim(left( max(of blue_lallele{i}
+244      ! pink_lallele{i}) ));
+245                dgeno=cdgeno{i};
+246                lgeno=clgeno{i};
+247                QTp=phenos{i};
+248                QLp=(dgeno='2/2');
+249        
+250        
+251                output;
+252              end;
+253             run;
+254        
+255             proc print data=individs(obs=10); title3 'individs';
+256             run;
+257        
+258        
+259            data alleles;
+260              set families;
+261        
+262              *--------------------------------------------------------;
+263              * Copy the arrays defined before (above, in families dsn);
+264              *--------------------------------------------------------;
+265              array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da&mkids;
+266              array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da&mkids;
+267        
+268              array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la&mkids;
+269              array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la&mkids;
+270        
+271              do i=1 to &mkids+2;
+272                *----------------------------------------------------------------------;
+273                * Output the two alleles (keeping the entire haplotype in the same obs);
+274                *----------------------------------------------------------------------;
+275                dallele = blue_dallele{i};
+276                lallele = blue_lallele{i};
+277                output;
+278        
+279                dallele = pink_dallele{i};
+280                lallele = pink_lallele{i};
+281                output;
+282              end;
+283             run;
+284        
+285             proc sort data=alleles; by i;
+286        ;
+287             *------------------------------;
+288             * Run simple Stat Analyses     ;
+289             *------------------------------;
+290        
+7                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+291             title3 'Is Disease Genotype Associated with Phenotype?';
+292        
+293             title4 'Histogram of QT PHENO';
+294             proc univariate data=individs plot;
+295              var QTp;
+296             run;
+297        
+298             proc univariate data=individs plot;
+299              class dgeno;
+300              var QTp;
+301             run;
+302        
+303             proc sort data=individs; by i pedid;
+304        
+305        
+306             title4 'GLM on Entire Dataset (ignoring family memberships)';
+307             proc glm data=individs;
+308               class dgeno;
+309               model QTp=dgeno;
+310             run;
+311        
+312             title4 'GLM on each member of Family';
+313             proc glm data=individs; by i;
+314               class dgeno;
+315               model QTp=dgeno;
+316             run;
+317        
+318             title4 'Mixed Model on Entire Dataset, accounting for Family memberships';
+319             proc mixed data=individs;
+320               class dgeno pedid;
+321               model QTp=dgeno;
+322               repeated  /subject=pedid type=un;
+323             run;
+324        
+325        
+326        
+327        
+328             title3 'Is Linkage Genotype Associated with Phenotype?';
+329             title4 'GLM on Entire Dataset (ignoring family memberships)';
+330             proc glm data=individs;
+331               class lgeno;
+332               model QTp=lgeno;
+333             run;
+334        
+335             title4 'GLM on each member of Family';
+336             proc glm data=individs; by i;
+337               class lgeno;
+338               model QTp=lgeno;
+339             run;
+340        
+341        
+342             title4 'Mixed Model on Entire Dataset, accounting for Family memberships';
+343             proc mixed data=individs;
+344               class lgeno pedid;
+345               model QTp=lgeno;
+346               repeated  /subject=pedid type=un;
+347             run;
+348        
+8                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+349        
+350        
+351        
+352             title3 'Are the Disease Gene and Linkage Marker associated?';
+353        
+354             title4 'Contingency Table on Genotypes (ignoring family relationships)';
+355             proc freq data=individs;
+356               tables dgeno*lgeno/chisq;
+357             run;
+358        
+359             title4 'Contingency Table on Alleles (ignoring family memberships)';
+360             proc freq data=alleles;
+361               tables dallele*lallele/chisq;
+362             run;
+363        
+364             title4 'Contingency Table on each member of Family';
+365             proc freq data=alleles; by i;
+366               tables dallele*lallele/chisq;
+367             run;
+368        
+369             data alleles; set alleles;
+370               Y = dallele - 1;  * Y=0 or 1 indicating disease allele;
+371             run;
+372        
+373             proc GLIMMIX data = alleles;
+374               class pedid lallele;
+375               model Y(event=last) = lallele / dist=BINARY S OR;
+376               random _residual_ / subject=pedid type=un;
+377               nloptions tech=none;
+378             run;
+379        
+380        %mend link;
+381        
+382        %link;
+MLOGIC(LINK):  Beginning execution.
+MPRINT(LINK):   title2 "theta=0.1 mudaa=-0.6 mudab=0.0 mudbb=0.8 dq=0.4 de=0.1 lalleles=6 nfams=100 mkids=4 seed=12345";
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   * Generate &nfams Nuclear Families: F, M, 1, ..., &mkids.;
+MPRINT(LINK):   * One record/pedid ;
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   data families;
+MPRINT(LINK):   seed=12345;
+MPRINT(LINK):   dq=0.4;
+MPRINT(LINK):   * disease-risk allele freq of disease gene;
+MPRINT(LINK):   dp=1-dq;
+MPRINT(LINK):   * normal-risk allele freq of disease gene;
+MPRINT(LINK):   de=0.1;
+MPRINT(LINK):   *-------------------------------------------;
+MPRINT(LINK):   * Disease Genotype, phenotype and haplotypes;
+MPRINT(LINK):   *-------------------------------------------;
+MPRINT(LINK):   array dgene{*} dgf dgm dg1-dg4;
+MPRINT(LINK):   array phenos{*} pf pm p1 -p4;
+MPRINT(LINK):   array mud{3} _temporary_ (-0.6 0.0 0.8);
+MPRINT(LINK):   *------------------------------------------------------------------;
+MPRINT(LINK):   * Two alleles (blue from father, pink from mother) for Disease Gene;
+MPRINT(LINK):   *------------------------------------------------------------------;
+MPRINT(LINK):   array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da4;
+MPRINT(LINK):   array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da4;
+9                                                          The SAS System                            19:35 Monday, February 13, 2017
+
+MPRINT(LINK):   *--------------------------------------------------------------------;
+MPRINT(LINK):   * Two alleles (blue from father, pink from mother) for Linkage Marker;
+MPRINT(LINK):   *--------------------------------------------------------------------;
+MPRINT(LINK):   array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la4;
+MPRINT(LINK):   array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la4;
+MPRINT(LINK):   *--------------------;
+MPRINT(LINK):   * Generate each pedid;
+MPRINT(LINK):   *--------------------;
+MPRINT(LINK):   do j=1 to 100;
+MPRINT(LINK):   pedid=j;
+MPRINT(LINK):   do i=1 to 4+2;
+MPRINT(LINK):   if i<=2 then do;
+MPRINT(LINK):   *-------------------------------------------------------------------;
+MPRINT(LINK):   * First generate Parents (founders) Genotypes--assume RANDOM mating ;
+MPRINT(LINK):   *-------------------------------------------------------------------;
+MPRINT(LINK):   *---------------------------------------------------------;
+MPRINT(LINK):   * Generate Disease Genotypes by drawing alleles (randomly);
+MPRINT(LINK):   *---------------------------------------------------------;
+MPRINT(LINK):   call rantbl(seed, dp, dq, blue_dallele{i});
+MPRINT(LINK):   call rantbl(seed, dp, dq, pink_dallele{i});
+MPRINT(LINK):   *-------------------------------------------;
+MPRINT(LINK):   * Generate Linkage Marker Alleles (randomly);
+MPRINT(LINK):   *-------------------------------------------;
+MPRINT(LINK):   call rantbl(seed, 0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667, blue_lallele{i});
+MPRINT(LINK):   call rantbl(seed, 0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667,0.1666666667, pink_lallele{i});
+MPRINT(LINK):   end;
+MPRINT(LINK):   else do;
+MPRINT(LINK):   *----------------------------------------------------------;
+MPRINT(LINK):   * Now generate Kids Genotypes from parents (dropping genes);
+MPRINT(LINK):   *----------------------------------------------------------;
+MPRINT(LINK):   *-----------------------------------------------------------------------------------------------------------------;
+MPRINT(LINK):   * Randomly choose whether father gives his Blue or Pink allele to each kid (this will be kids Blue allele) ;
+MPRINT(LINK):   * But you must do this for both the disease and linkage markers simultaneously, because they are linked by &theta ;
+MPRINT(LINK):   *-----------------------------------------------------------------------------------------------------------------;
+MPRINT(LINK):   call ranuni(seed, xr1);
+MPRINT(LINK):   blue_recomb=(xr1 < 0.1);
+MPRINT(LINK):   call ranuni(seed, x1);
+MPRINT(LINK):   if (x1<0.5) then do;
+MPRINT(LINK):   blue_dallele{i} = blue_dallele{1};
+MPRINT(LINK):   if blue_recomb then blue_lallele{i} = pink_lallele{1};
+MPRINT(LINK):   else blue_lallele{i} = blue_lallele{1};
+MPRINT(LINK):   end;
+MPRINT(LINK):   else do;
+MPRINT(LINK):   blue_dallele{i} = pink_dallele{1};
+MPRINT(LINK):   if blue_recomb then blue_lallele{i} = blue_lallele{1};
+MPRINT(LINK):   else blue_lallele{i} = pink_lallele{1};
+MPRINT(LINK):   end;
+MPRINT(LINK):   *----------------------------------------;
+MPRINT(LINK):   * Same for mother (pick kids Pink allele);
+MPRINT(LINK):   *----------------------------------------;
+MPRINT(LINK):   call ranuni(seed, xr2);
+MPRINT(LINK):   pink_recomb=(xr2 < 0.1);
+MPRINT(LINK):   call ranuni(seed, x2);
+MPRINT(LINK):   if (x2<0.5) then do;
+MPRINT(LINK):   pink_dallele{i} = blue_dallele{2};
+MPRINT(LINK):   if pink_recomb then pink_lallele{i} = pink_lallele{2};
+MPRINT(LINK):   else pink_lallele{i} = blue_lallele{2};
+MPRINT(LINK):   end;
+10                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+MPRINT(LINK):   else do;
+MPRINT(LINK):   pink_dallele{i} = pink_dallele{2};
+MPRINT(LINK):   if pink_recomb then pink_lallele{i} = blue_lallele{2};
+MPRINT(LINK):   else pink_lallele{i} = pink_lallele{2};
+MPRINT(LINK):   end;
+MPRINT(LINK):   end;
+MPRINT(LINK):   *-----------------------------------------------------------------------------------------;
+MPRINT(LINK):   * Disease genotype index: 1=1/1, 2=1/2, 3=2/2, to feed into MUD{} array of genotypic means;
+MPRINT(LINK):   *-----------------------------------------------------------------------------------------;
+MPRINT(LINK):   dgene{i} = blue_dallele{i} + pink_dallele{i} - 1;
+MPRINT(LINK):   *-------------------------------------------------------------------;
+MPRINT(LINK):   * Generate Phenotype from Disease Genotype for each person in family;
+MPRINT(LINK):   *-------------------------------------------------------------------;
+MPRINT(LINK):   call rannor(seed,x);
+MPRINT(LINK):   phenos{i} = mud{dgene{i}} + de * x;
+MPRINT(LINK):   end;
+MPRINT(LINK):   *-------------------------;
+MPRINT(LINK):   * Output record (1/family);
+MPRINT(LINK):   *-------------------------;
+MPRINT(LINK):   output;
+MPRINT(LINK):   end;
+MPRINT(LINK):   *--------------------------------;
+MPRINT(LINK):   * Output last SEED for later use ;
+MPRINT(LINK):   *--------------------------------;
+MPRINT(LINK):   call symput('seed',trim(left(seed)));
+MPRINT(LINK):   retain seed;
+MPRINT(LINK):   drop i j;
+MPRINT(LINK):   run;
+
+NOTE: Numeric values have been converted to character values at the places given by: (Line):(Column).
+      382:73   
+NOTE: The data set WORK.FAMILIES has 100 observations and 48 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc print data=families(obs=10);
+MPRINT(LINK):   title3 'Families';
+MPRINT(LINK):   run;
+
+NOTE: There were 10 observations read from the data set WORK.FAMILIES.
+NOTE: The PROCEDURE PRINT printed page 1.
+NOTE: PROCEDURE PRINT used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.04 seconds
+      
+
+MPRINT(LINK):   *------------------------------------------;
+MPRINT(LINK):   * Now convert from Families to Individuals ;
+MPRINT(LINK):   *------------------------------------------;
+MPRINT(LINK):   data individs;
+MPRINT(LINK):   set families;
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   * Copy the arrays defined before (above, in families dsn);
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da4;
+MPRINT(LINK):   array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da4;
+11                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+MPRINT(LINK):   array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la4;
+MPRINT(LINK):   array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la4;
+MPRINT(LINK):   length cdgf cdgm cdg1-cdg4 $10;
+MPRINT(LINK):   length clgf clgm clg1-clg4 $10;
+MPRINT(LINK):   array cdgeno{*} cdgf cdgm cdg1-cdg4;
+MPRINT(LINK):   array clgeno{*} clgf clgm clg1-clg4;
+MPRINT(LINK):   array phenos{*} pf pm p1-p4;
+MPRINT(LINK):   do i=1 to 4+2;
+MPRINT(LINK):   *----------------------------------------------------------------------------;
+MPRINT(LINK):   * Convert the two numeric alleles into the character "x/y" genotype notation ;
+MPRINT(LINK):   * for each of the disease gene and the linkage marker ;
+MPRINT(LINK):   *----------------------------------------------------------------------------;
+MPRINT(LINK):   cdgeno{i} = trim(left( min(of blue_dallele{i} pink_dallele{i}) ))||'/'||trim(left( max(of blue_dallele{i} 
+pink_dallele{i}) ));
+MPRINT(LINK):   clgeno{i} = trim(left( min(of blue_lallele{i} pink_lallele{i}) ))||'/'||trim(left( max(of blue_lallele{i} 
+pink_lallele{i}) ));
+MPRINT(LINK):   dgeno=cdgeno{i};
+MPRINT(LINK):   lgeno=clgeno{i};
+MPRINT(LINK):   QTp=phenos{i};
+MPRINT(LINK):   QLp=(dgeno='2/2');
+MPRINT(LINK):   output;
+MPRINT(LINK):   end;
+MPRINT(LINK):   run;
+
+NOTE: Numeric values have been converted to character values at the places given by: (Line):(Column).
+      382:33    382:93    382:168   382:228   
+NOTE: There were 100 observations read from the data set WORK.FAMILIES.
+NOTE: The data set WORK.INDIVIDS has 600 observations and 65 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc print data=individs(obs=10);
+MPRINT(LINK):   title3 'individs';
+MPRINT(LINK):   run;
+
+NOTE: There were 10 observations read from the data set WORK.INDIVIDS.
+NOTE: The PROCEDURE PRINT printed page 2.
+NOTE: PROCEDURE PRINT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+MPRINT(LINK):   data alleles;
+MPRINT(LINK):   set families;
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   * Copy the arrays defined before (above, in families dsn);
+MPRINT(LINK):   *--------------------------------------------------------;
+MPRINT(LINK):   array blue_dallele{*} blue_daf blue_dam blue_da1-blue_da4;
+MPRINT(LINK):   array pink_dallele{*} pink_daf pink_dam pink_da1-pink_da4;
+MPRINT(LINK):   array blue_lallele{*} blue_laf blue_lam blue_la1-blue_la4;
+MPRINT(LINK):   array pink_lallele{*} pink_laf pink_lam pink_la1-pink_la4;
+MPRINT(LINK):   do i=1 to 4+2;
+MPRINT(LINK):   *----------------------------------------------------------------------;
+MPRINT(LINK):   * Output the two alleles (keeping the entire haplotype in the same obs);
+MPRINT(LINK):   *----------------------------------------------------------------------;
+MPRINT(LINK):   dallele = blue_dallele{i};
+12                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+MPRINT(LINK):   lallele = blue_lallele{i};
+MPRINT(LINK):   output;
+MPRINT(LINK):   dallele = pink_dallele{i};
+MPRINT(LINK):   lallele = pink_lallele{i};
+MPRINT(LINK):   output;
+MPRINT(LINK):   end;
+MPRINT(LINK):   run;
+
+NOTE: There were 100 observations read from the data set WORK.FAMILIES.
+NOTE: The data set WORK.ALLELES has 1200 observations and 51 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc sort data=alleles;
+MPRINT(LINK):   by i;
+MPRINT(LINK):   ;
+MPRINT(LINK):   *------------------------------;
+MPRINT(LINK):   * Run simple Stat Analyses ;
+MPRINT(LINK):   *------------------------------;
+MPRINT(LINK):   title3 'Is Disease Genotype Associated with Phenotype?';
+MPRINT(LINK):   title4 'Histogram of QT PHENO';
+
+NOTE: There were 1200 observations read from the data set WORK.ALLELES.
+NOTE: The data set WORK.ALLELES has 1200 observations and 51 variables.
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc univariate data=individs plot;
+MPRINT(LINK):   var QTp;
+MPRINT(LINK):   run;
+
+NOTE: The PROCEDURE UNIVARIATE printed pages 3-4.
+NOTE: PROCEDURE UNIVARIATE used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc univariate data=individs plot;
+MPRINT(LINK):   class dgeno;
+MPRINT(LINK):   var QTp;
+MPRINT(LINK):   run;
+
+NOTE: The PROCEDURE UNIVARIATE printed pages 5-10.
+NOTE: PROCEDURE UNIVARIATE used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+MPRINT(LINK):   proc sort data=individs;
+MPRINT(LINK):   by i pedid;
+MPRINT(LINK):   title4 'GLM on Entire Dataset (ignoring family memberships)';
+
+NOTE: There were 600 observations read from the data set WORK.INDIVIDS.
+NOTE: The data set WORK.INDIVIDS has 600 observations and 65 variables.
+13                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+NOTE: PROCEDURE SORT used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc glm data=individs;
+MPRINT(LINK):   class dgeno;
+MPRINT(LINK):   model QTp=dgeno;
+MPRINT(LINK):   run;
+
+MPRINT(LINK):   title4 'GLM on each member of Family';
+
+NOTE: The PROCEDURE GLM printed pages 11-12.
+NOTE: PROCEDURE GLM used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   proc glm data=individs;
+MPRINT(LINK):   by i;
+MPRINT(LINK):   class dgeno;
+MPRINT(LINK):   model QTp=dgeno;
+MPRINT(LINK):   run;
+
+NOTE: Interactivity disabled with BY processing.
+NOTE: The PROCEDURE GLM printed pages 13-24.
+NOTE: PROCEDURE GLM used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.03 seconds
+      
+
+MPRINT(LINK):   title4 'Mixed Model on Entire Dataset, accounting for Family memberships';
+MPRINT(LINK):   proc mixed data=individs;
+MPRINT(LINK):   class dgeno pedid;
+MPRINT(LINK):   model QTp=dgeno;
+MPRINT(LINK):   repeated /subject=pedid type=un;
+MPRINT(LINK):   run;
+
+NOTE: Convergence criteria met.
+NOTE: The PROCEDURE MIXED printed pages 25-26.
+NOTE: PROCEDURE MIXED used (Total process time):
+      real time           0.04 seconds
+      cpu time            0.03 seconds
+      
+
+MPRINT(LINK):   title3 'Is Linkage Genotype Associated with Phenotype?';
+MPRINT(LINK):   title4 'GLM on Entire Dataset (ignoring family memberships)';
+MPRINT(LINK):   proc glm data=individs;
+MPRINT(LINK):   class lgeno;
+MPRINT(LINK):   model QTp=lgeno;
+MPRINT(LINK):   run;
+
+MPRINT(LINK):   title4 'GLM on each member of Family';
+
+NOTE: The PROCEDURE GLM printed pages 27-28.
+NOTE: PROCEDURE GLM used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.02 seconds
+14                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+      
+
+MPRINT(LINK):   proc glm data=individs;
+MPRINT(LINK):   by i;
+MPRINT(LINK):   class lgeno;
+MPRINT(LINK):   model QTp=lgeno;
+MPRINT(LINK):   run;
+
+NOTE: Interactivity disabled with BY processing.
+NOTE: The PROCEDURE GLM printed pages 29-40.
+NOTE: PROCEDURE GLM used (Total process time):
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+
+MPRINT(LINK):   title4 'Mixed Model on Entire Dataset, accounting for Family memberships';
+MPRINT(LINK):   proc mixed data=individs;
+MPRINT(LINK):   class lgeno pedid;
+MPRINT(LINK):   model QTp=lgeno;
+MPRINT(LINK):   repeated /subject=pedid type=un;
+MPRINT(LINK):   run;
+
+NOTE: Convergence criteria met.
+NOTE: The PROCEDURE MIXED printed pages 41-43.
+NOTE: PROCEDURE MIXED used (Total process time):
+      real time           0.10 seconds
+      cpu time            0.11 seconds
+      
+
+MPRINT(LINK):   title3 'Are the Disease Gene and Linkage Marker associated?';
+MPRINT(LINK):   title4 'Contingency Table on Genotypes (ignoring family relationships)';
+MPRINT(LINK):   proc freq data=individs;
+MPRINT(LINK):   tables dgeno*lgeno/chisq;
+MPRINT(LINK):   run;
+
+NOTE: There were 600 observations read from the data set WORK.INDIVIDS.
+NOTE: The PROCEDURE FREQ printed pages 44-45.
+NOTE: PROCEDURE FREQ used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+MPRINT(LINK):   title4 'Contingency Table on Alleles (ignoring family memberships)';
+MPRINT(LINK):   proc freq data=alleles;
+MPRINT(LINK):   tables dallele*lallele/chisq;
+MPRINT(LINK):   run;
+
+NOTE: There were 1200 observations read from the data set WORK.ALLELES.
+NOTE: The PROCEDURE FREQ printed page 46.
+NOTE: PROCEDURE FREQ used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.02 seconds
+      
+
+MPRINT(LINK):   title4 'Contingency Table on each member of Family';
+MPRINT(LINK):   proc freq data=alleles;
+MPRINT(LINK):   by i;
+MPRINT(LINK):   tables dallele*lallele/chisq;
+15                                                         The SAS System                            19:35 Monday, February 13, 2017
+
+MPRINT(LINK):   run;
+
+NOTE: There were 1200 observations read from the data set WORK.ALLELES.
+NOTE: The PROCEDURE FREQ printed pages 47-52.
+NOTE: PROCEDURE FREQ used (Total process time):
+      real time           0.01 seconds
+      cpu time            0.01 seconds
+      
+
+MPRINT(LINK):   data alleles;
+MPRINT(LINK):   set alleles;
+MPRINT(LINK):   Y = dallele - 1;
+MPRINT(LINK):   * Y=0 or 1 indicating disease allele;
+MPRINT(LINK):   run;
+
+NOTE: There were 1200 observations read from the data set WORK.ALLELES.
+NOTE: The data set WORK.ALLELES has 1200 observations and 52 variables.
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.00 seconds
+      
+
+MPRINT(LINK):   proc GLIMMIX data = alleles;
+MPRINT(LINK):   class pedid lallele;
+MPRINT(LINK):   model Y(event=last) = lallele / dist=BINARY S OR;
+MPRINT(LINK):   random _residual_ / subject=pedid type=un;
+MPRINT(LINK):   nloptions tech=none;
+MPRINT(LINK):   run;
+
+
+
+NOTE: The GLIMMIX procedure is modeling the probability that Y='1'.
+NOTE: Convergence criterion (PCONV=1.11022E-8) satisfied.
+NOTE: The PROCEDURE GLIMMIX printed pages 53-57.
+NOTE: PROCEDURE GLIMMIX used (Total process time):
+      real time           14.48 seconds
+      cpu time            14.49 seconds
+      
+
+MLOGIC(LINK):  Ending execution.
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+NOTE: The SAS System used:
+      real time           14.96 seconds
+      cpu time            14.90 seconds
+      
