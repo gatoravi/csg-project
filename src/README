@@ -1,1 +1,2 @@
 python ml_grid.py ../dat/linkdata.csv
+python em_naive.py ../dat/linkdata.csv
