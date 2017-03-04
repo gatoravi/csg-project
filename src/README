@@ -3,3 +3,7 @@ True values:
 python3 ml_grid.py ../dat/linkdata_v2.csv
 python3 ml_grid.py ../dat/linkdata.csv
 python3 ml_grid_v2.py ../dat/linkdata.csv #mean10.tsv
+
+
+#Use the EM method
+python em_naive.py ../dat/linkdata.csv
