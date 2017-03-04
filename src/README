@@ -1,1 +1,5 @@
-python ml_grid.py ../dat/linkdata.csv
+True values:
+%let mudaa=-0.6; %let mudab=0.0; %let mudbb=0.8;
+python3 ml_grid.py ../dat/linkdata_v2.csv
+python3 ml_grid.py ../dat/linkdata.csv
+python3 ml_grid_v2.py ../dat/linkdata.csv #mean10.tsv

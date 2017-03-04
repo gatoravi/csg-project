@@ -17,12 +17,12 @@ def ml_grid_search(qts):
     max_lik = float("-inf")
     for q in [0.6, 0.4]:
     #for q in [x / 100 for x in range(10, 100, 10)]:
-        for mu1 in [14, 10, -5]:
-        #for mu1 in [x / 10 for x in range(-10, 11, 1)]:
-            #for mu2 in [x / 10 for x in range(-10, 11, 1)]:
-            for mu2 in [14, -5, 10]:
-                #for mu3 in [x / 10 for x in range(-10, 11, 1)]:
-                for mu3 in [10, -5, 14]:
+        #for mu1 in [14, 10, -5]:
+        for mu1 in [x / 10 for x in range(-10, 11, 1)]:
+            for mu2 in [x / 10 for x in range(-10, 11, 1)]:
+            #for mu2 in [14, -5, 10]:
+                for mu3 in [x / 10 for x in range(-10, 11, 1)]:
+                #for mu3 in [10, -5, 14]:
                     #if mu1 == mu2 or mu2 == mu3 or mu1 == mu3:
                         #continue
                     for sigma in [0.1]:
@@ -32,17 +32,12 @@ def ml_grid_search(qts):
                         lik = 0
                         for x in qts:
                             lik1 = 0
-                            #print(mu3, log(1.0 - q), ((x - mu3)**2)/(2 * sigmasq))
                             #Hom Ref
-                            lik1 += 1.0/6.0 * scipy.stats.norm.pdf(x, mu1, sigma)
-                            #print("lik1", 2 * log(1.0 - q) - ((x - mu1)**2)/(2 * sigmasq) - 0.5 * log(2 * math.pi * sigmasq))
+                            lik1 += (1.0 - q) * (1.0 - q)  * scipy.stats.norm.pdf(x, mu1, sigma)
                             #Het
-                            lik1 += 2.0/6.0 * scipy.stats.norm.pdf(x, mu2, sigma)
-                            #print("lik2", log(2) + log(1.0 - q) + log(q) - ((x - mu2)**2)/(2 * sigmasq) - 0.5 * log(2 * math.pi * sigmasq))
+                            lik1 += 2 * q * (1.0 - q) * scipy.stats.norm.pdf(x, mu2, sigma)
                             #Hom Alt
-                            lik1 += 3.0/6.0 * scipy.stats.norm.pdf(x, mu3, sigma)
-                            #print("lik3", 2 * log(q) - ((x - mu3)**2)/(2 * sigmasq) - 0.5 * log(2 * math.pi * sigmasq))
-                            #print(lik1)
+                            lik1 += q * q * scipy.stats.norm.pdf(x, mu3, sigma)
                             lik += log(lik1 + sys.float_info.min)
                         if lik > max_lik:
                             max_lik = lik
