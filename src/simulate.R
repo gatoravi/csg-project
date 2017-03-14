@@ -1,0 +1,8 @@
+s <- c()
+s <- c(s, rnorm(100, 10, 10))
+s <- c(s, rnorm(200, 100, 10))
+s <- c(s, rnorm(100, 200, 10))
+cat(s, sep = "\n",file = "mean10.tsv")
+pdf("QTp.pdf")
+hist(s)
+dev.off()
