@@ -143,9 +143,9 @@ class NaiveEM:
             self.mu3 = bbsum/(self.n3)
         self.sigmanew = 0
         for i, x in enumerate(self.qts):
-            self.sigmanew += ((x - self.mu1) * self.gtsaa[i]) ** 2
-            self.sigmanew += ((x - self.mu2) * self.gtsab[i]) ** 2
-            self.sigmanew += ((x - self.mu3) * self.gtsbb[i]) ** 2
+            self.sigmanew += ((x - self.mu1)) ** 2 * self.gtsaa[i]
+            self.sigmanew += ((x - self.mu2)) ** 2 * self.gtsab[i]
+            self.sigmanew += ((x - self.mu3)) ** 2 * self.gtsbb[i]
         self.sigma = math.sqrt(self.sigmanew/n)
         print("sigma", self.sigma)
         print("qnew", self.q)
