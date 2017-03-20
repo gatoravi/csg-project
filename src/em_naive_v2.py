@@ -118,7 +118,7 @@ class NaiveEM:
         self.mu2 = self.qts[random.randint(0, len(self.qts) - 1)]
         self.mu3 = self.qts[random.randint(0, len(self.qts) - 1)]
         self.sigma = np.std(self.qts)
-        self.q = 0.5
+        self.q = 0.33
         print("Initial params mus, sigma, q", [self.mu1, self.mu2, self.mu3, self.sigma, self.q])
         for i in range(1000):
             print("\nIteration: ", i+1)
