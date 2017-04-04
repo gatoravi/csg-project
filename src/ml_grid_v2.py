@@ -15,14 +15,12 @@ def read_qt(qt_file):
 
 def ml_grid_search(qts):
     max_lik = float("-inf")
-    for q in [0.6, 0.4]:
-    #for q in [x / 100 for x in range(10, 100, 10)]:
-        #for mu1 in [14, 10, -5]:
-        for mu1 in [x / 10 for x in range(-10, 11, 1)]:
-            for mu2 in [x / 10 for x in range(-10, 11, 1)]:
-            #for mu2 in [14, -5, 10]:
-                for mu3 in [x / 10 for x in range(-10, 11, 1)]:
-                #for mu3 in [10, -5, 14]:
+    xmax = max(qts)
+    xmin = min(qts)
+    for q in [x / 100 for x in range(10, 100, 10)]:
+        for mu1 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
+            for mu2 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
+                for mu3 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
                     #if mu1 == mu2 or mu2 == mu3 or mu1 == mu3:
                         #continue
                     for sigma in [0.1]:
