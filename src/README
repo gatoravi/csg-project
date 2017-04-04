@@ -11,10 +11,8 @@ mu1 = -0.9 mu2 = 0.5  mu3 = 0.9 dq = 0.3 std-dev = 0.1
 scp ramua@gewiz.biostat.lan:/nfs/golding/home/ramua/project/dat/linkdata_v3.csv ../dat/
 
 #Use the EM method
-python3 em_naive.py ../dat/linkdata.csv
-python3 em_naive_v2.py mean10.tsv
-python3 em_naive_v2.py ../dat/linkdata.csv
 python3 em_naive_v2.py ../dat/linkdata_v2.csv
-python3 em_naive_v2.py ../dat/linkdata_v3.csv
 python3 em_naive_v2.py mean10.tsv
 python3 em_naive_v2.py mean10_v2.tsv
+python3 em_naive_v2.py ../dat/linkdata.csv
+python3 em_naive_v2.py ../dat/linkdata_v3.csv
