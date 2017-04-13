@@ -4,6 +4,7 @@ import math
 from math import log as log
 import scipy
 import scipy.stats
+import statistics
 
 def read_qt(qt_file):
     qts = []
@@ -17,13 +18,12 @@ def ml_grid_search(qts):
     max_lik = float("-inf")
     xmax = max(qts)
     xmin = min(qts)
+    sigmaall = statistics.stdev(qts)
     for q in [x / 100 for x in range(10, 100, 10)]:
         for mu1 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
             for mu2 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
                 for mu3 in [x / 10 for x in range(int(xmin * 10), int(xmax * 10), 1)]:
-                    #if mu1 == mu2 or mu2 == mu3 or mu1 == mu3:
-                        #continue
-                    for sigma in [0.1]:
+                    for sigma in [sigmaall, sigmaall/10, sigmaall/100]:
                         sigmasq = sigma ** 2
                         #print(q, mu1, mu2, mu3, sigmasq)
                         params = "\t".join([str(q), str(mu1), str(mu2), str(mu3), str(sigmasq)])

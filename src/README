@@ -1,9 +1,14 @@
 True values:
-%let mudaa=-0.6; %let mudab=0.0; %let mudbb=0.8;
+#V1 details
+%let mudaa=-0.6; %let mudab=0.0; %let mudbb=0.8; dq = 0.4; std-dev = 0.1
 python3 ml_grid.py ../dat/linkdata_v2.csv
 python3 ml_grid.py ../dat/linkdata.csv
 python3 ml_grid_v2.py ../dat/linkdata.csv #mean10.tsv
 
+#V1 details
+mu1 = -0.6 mu2 = 0.0 mu3 = 0.8  dq = 0.4  std-dev = 0.1
+#V2 details
+mu1 = -0.9 mu2 = 0.5 mu3 = 0.9  dq = 0.4  std-dev = 0.1
 #V3 details
 mu1 = -0.9 mu2 = 0.5  mu3 = 0.9 dq = 0.3 std-dev = 0.1
 
@@ -16,3 +21,5 @@ python3 em_naive_v2.py mean10.tsv
 python3 em_naive_v2.py mean10_v2.tsv
 python3 em_naive_v2.py ../dat/linkdata.csv
 python3 em_naive_v2.py ../dat/linkdata_v3.csv
+
+#Compute time taken for the grid search
