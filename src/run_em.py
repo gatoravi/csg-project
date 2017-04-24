@@ -6,6 +6,9 @@ import numpy as np
 import scipy.stats
 import statistics
 from math import log as log
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 class NaiveEM:
     #This is the latent variable - genotype for every x_i
@@ -20,6 +23,7 @@ class NaiveEM:
         "Initialize all the params"
         self.total_like_new = 0
         self.total_like_old = 0
+        self.all_liks = [] #Keep track of likelihoods
         with open(qt_file) as qtfh:
             qtfh_dict = csv.DictReader(qtfh, delimiter = ",")
             for line in qtfh_dict:
@@ -75,6 +79,7 @@ class NaiveEM:
         #print("gt", self.gtsaa, self.gtsab, self.gtsbb)
         #print("gtsum", [x + y + z for x, y, z in zip(self.gtsaa, self.gtsab, self.gtsbb)])
         self.like_diff = self.total_like_new - self.total_like_old
+        self.all_liks.append(self.total_like_new)
         print("Likelihoods - old, new, new - old: ", self.total_like_old, self.total_like_new, self.like_diff)
         print("n1, n2, n3: ", self.n1, self.n2, self.n3)
 
@@ -131,10 +136,20 @@ class NaiveEM:
                 print("\nLikelihood difference less than 1e-12. Stopping EM.", self.like_diff)
                 break
 
+    def plot_liks(self):
+        "Plot likelihood vs iterations"
+        n_iterations = len(self.all_liks)
+        plt.plot(range(n_iterations), self.all_liks)
+        plt.ylabel("Likelihood")
+        plt.xlabel("Iteration")
+        plt.savefig("lik_vs_iteration.png")
+
+
 def main():
     "Everything happens here"
     qt_file = sys.argv[1]
     em1 = NaiveEM(qt_file)
     em1.run_em()
+    em1.plot_liks()
 
 main()
