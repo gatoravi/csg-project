@@ -18,6 +18,7 @@ class NaiveEM:
     gtsbb = []
     #List of x_i s
     qts = []
+    lik_cutoff = 1e-6
 
     def __init__(self, qt_file):
         "Initialize all the params"
@@ -69,9 +70,9 @@ class NaiveEM:
             bblik_norm = math.exp(bblik)
             #print("after exp", aalik_norm, ablik_norm, bblik_norm)
             sumlik_norm = aalik_norm + ablik_norm + bblik_norm
-            self.gtsaa[i] = math.exp(math.log(aalik_norm) - math.log(sumlik_norm))
-            self.gtsab[i] = math.exp(math.log(ablik_norm) - math.log(sumlik_norm))
-            self.gtsbb[i] = math.exp(math.log(bblik_norm) - math.log(sumlik_norm))
+            self.gtsaa[i] = math.exp(aalik - math.log(sumlik_norm))
+            self.gtsab[i] = math.exp(ablik - math.log(sumlik_norm))
+            self.gtsbb[i] = math.exp(bblik - math.log(sumlik_norm))
             self.n1 += self.gtsaa[i]
             self.n2 += self.gtsab[i]
             self.n3 += self.gtsbb[i]
@@ -132,8 +133,8 @@ class NaiveEM:
             print("Running M step")
             self.m_step()
             print("Params mus, sigma, q", [self.mu1, self.mu2, self.mu3, self.sigma, self.q])
-            if i != 0 and self.like_diff < 1e-12:
-                print("\nLikelihood difference less than 1e-12. Stopping EM.", self.like_diff)
+            if i != 0 and self.like_diff < self.lik_cutoff:
+                print("\nLikelihood difference less than ", self.lik_cutoff, ". Stopping EM.", self.like_diff)
                 break
 
     def plot_liks(self):
